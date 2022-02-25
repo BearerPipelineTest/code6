@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Models\CodeLeak;
+use App\Models\ConfigCommon;
 use App\Models\ConfigNotify;
 use App\Services\NotifyService;
 use Carbon\Carbon;
@@ -83,7 +84,7 @@ class NotifyCommand extends Command
             }
 
             $config = json_decode($config->value, true);
-            $tpl = $service->getTemplate($type, $data['stime'], $data['etime'], $data['count']);
+            $tpl = $service->getTemplate($type, $data['stime'], $data['etime'], $data['count'], $data['detail']);
             $result = $service->$type($tpl['title'], $tpl['content'], $config);
             $this->log->info('Send complete', array_merge(['type' => $type], $result));
         }
@@ -104,6 +105,13 @@ class NotifyCommand extends Command
         $query = CodeLeak::where('status', CodeLeak::STATUS_PENDING);
         $query = $query->whereBetween('created_at', $data);
         $data['count'] = $query->count();
+        $config = ConfigCommon::getValue(ConfigCommon::KEY_NOTIFY_TEMPLATE);
+        $config = json_decode($config, true);
+        $detail = $config['detail'] ?? self::TEMPLATE_DEFAULT_DETAIL;
+        if ($detail) {
+            $limit = $config['limit'] ?? self::TEMPLATE_DEFAULT_LIMIT;
+            $data['detail'] = $query->limit($limit)->get();
+        }
         return $data;
     }
 }
